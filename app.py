@@ -3,7 +3,7 @@ import logging
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from validator.main_validator import PGSMetadataValidator
+import resources.metadata_validator as metadata_validator
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -45,15 +45,7 @@ def validate_metadata():
 
     try:
         bin_file = io.BytesIO(file.read())
-        metadata_validator = PGSMetadataValidator(bin_file, False)
-        metadata_validator.parse_spreadsheets()
-        metadata_validator.parse_publication()
-        metadata_validator.parse_scores()
-        score_names = list(metadata_validator.parsed_scores.keys())
-        metadata_validator.parse_cohorts()
-        metadata_validator.parse_performances()
-        metadata_validator.parse_samples()
-        metadata_validator.post_parsing_checks()
+        validation_results = metadata_validator.validate_metadata(bin_file)
     except Exception as e:
         logging.getLogger(__name__).error(str(e))
         return jsonify({
@@ -69,20 +61,18 @@ def validate_metadata():
     valid = True
     public_error_report = {}
     public_warning_report = {}
-    if metadata_validator.report['error']:
+    if validation_results.error_messages:
         valid = False
-        error_report = metadata_validator.report['error']
-        add_report_error(public_error_report, error_report)
+        add_report_error(public_error_report, validation_results.error_messages)
 
-    if metadata_validator.report['warning']:
-        warning_report = metadata_validator.report['warning']
-        add_report_error(public_warning_report, warning_report)
+    if validation_results.warning_messages:
+        add_report_error(public_warning_report, validation_results.warning_messages)
 
     response = {
         "valid": valid,
         "errorMessages": public_error_report,
         "warningMessages": public_warning_report,
-        "scoreNames": score_names,
+        "scoreNames": validation_results.score_names,
     }
 
     return jsonify(response)
