@@ -6,9 +6,7 @@ from flask_cors import CORS
 import resources.metadata_validator as metadata_validator
 
 app = Flask(__name__)
-app.config["DEBUG"] = True
-# File size limit set to 4MB (average is 400-500K)
-app.config['MAX_CONTENT_LENGTH'] = 4 * 1000 * 1000
+app.config.from_object("config.Config")
 
 # CORS settings
 CORS(app)
