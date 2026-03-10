@@ -1,5 +1,5 @@
 class Config:
-    SECURED = False
+    SECURED = True
     PUBLIC_KEY_FILE = "public.pem"
     JWT_EXPECTED_ISSUER = "gwas-deposition-app"
     JWT_EXPECTED_AUDIENCE = "pgs-deposition-api"
