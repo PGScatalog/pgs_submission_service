@@ -4,3 +4,5 @@ pgs-catalog-cred.json
 dist
 .idea
 .venv
+*.pem
+test
