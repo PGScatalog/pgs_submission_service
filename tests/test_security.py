@@ -65,9 +65,9 @@ def encode_jwt(private_key):
 
 def test_missing_jwt():
     app = create_app()
-    tester = app.test_client()
-    response = tester.get("/")
-    assert response.status_code == 401
+    with app.test_client() as client:
+        response = client.get("/")
+        assert response.status_code == 401
 
 
 def test_valid_jwt(jwt_keys):
