@@ -17,11 +17,9 @@
 **/__pycache__
 
 # Other
-app.yaml_template
-pgs-catalog-cred.json_template
-pgs_metadata_validator.py
 LICENSE.md
 README.md
 
-dist
 .idea
+.venv
+test
