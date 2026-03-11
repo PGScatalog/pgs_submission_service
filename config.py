@@ -14,3 +14,8 @@ class Config:
     # File size limit set to 4MB (average is 400-500K)
     MAX_CONTENT_LENGTH = os.environ.get("MAX_CONTENT_LENGTH", 4 * 1000 * 1000)
     DEBUG = env_bool("DEBUG", default=False)
+
+
+class TestConfig(Config):
+    SECURED = False
+    DEBUG = True
