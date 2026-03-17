@@ -1,29 +1,20 @@
 import io
 import logging
 
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-import resources.metadata_validator as metadata_validator
+from flask import jsonify, request, Blueprint
+import app.services.metadata_validator as metadata_validator
 
-from resources.security import secure_app, require_auth
+from app.security.security import require_auth
 
-app = Flask(__name__)
-app.config.from_object("config.Config")
-
-# CORS settings
-CORS(app)
-cors = CORS(app, resources={r"/": {"origins": "*"}})
-
-# Set up security
-secure_app(app)
+bp = Blueprint("main", __name__)
 
 
-@app.route("/robots.txt")
+@bp.route("/robots.txt")
 def robots_dot_txt():
     return "User-agent: *\nDisallow: /"
 
 
-@app.route('/', methods=['GET'])
+@bp.route('/', methods=['GET'])
 @require_auth
 def home():
     return "<h1>PGS Catalog metadata validator</h1><p>This service validates the Metadata files schema and content.</p>\n"
@@ -43,7 +34,7 @@ def add_report_error(depositon_report: dict, report: dict):
         depositon_report[spreadsheet].extend(errors)
 
 
-@app.route('/validate_metadata', methods=['POST'])
+@bp.route('/validate_metadata', methods=['POST'])
 def validate_metadata():
     file = request.files['file']
 

@@ -23,3 +23,6 @@ README.md
 .idea
 .venv
 test
+tests
+requirements_*.txt
+.env
