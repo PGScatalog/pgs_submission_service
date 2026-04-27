@@ -10,8 +10,7 @@ def create_app(config_object="config.Config"):
     app.config.from_object(config_object)
 
     # CORS settings
-    CORS(app)
-    cors = CORS(app, resources={r"/": {"origins": "*"}})
+    CORS(app, resources={r"/": {"origins": "*"}})
 
     # Set up security
     secure_app(app)
