@@ -1,7 +1,9 @@
+import pydantic
 from flask import Flask
 from flask_cors import CORS
 
 from app.security.security import secure_app
+from config import GlobusConfig
 
 
 def create_app(config_object="config.Config"):
@@ -14,6 +16,15 @@ def create_app(config_object="config.Config"):
 
     # Set up security
     secure_app(app)
+
+    # Globus config
+    try:
+        globus_cfg = GlobusConfig()
+        app.extensions["globus"] = globus_cfg
+    except pydantic.ValidationError as e:
+        missing = [err["loc"][0] for err in e.errors()]
+        app.logger.error(f"Missing Globus configuration variables: {', '.join(missing)}")
+        raise RuntimeError(e)
 
     from .routes import bp
     app.register_blueprint(bp)
