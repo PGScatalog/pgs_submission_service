@@ -40,9 +40,13 @@ def add_report_error(depositon_report: dict, report: dict):
 
 
 @bp.route('/validate_metadata', methods=['POST'])
+@require_auth
 def validate_metadata():
     """Endpoint to validate metadata file. Expects a multipart/form-data request with a file field named 'file'.
     Returns a JSON response with the validation results, including whether the file is valid, any error messages, and any warning messages."""
+
+    if 'file' not in request.files:
+        return jsonify({"error": "Missing input file"}), 400
     file = request.files['file']
 
     try:
@@ -148,3 +152,8 @@ def globus_test():
 def handle_unexpected_error(e):
     logging.getLogger(__name__).error(f"Unexpected error: {e}")
     return jsonify({"error": "An unexpected error occurred"}), 500
+
+
+@bp.errorhandler(413)
+def file_too_large(e):
+    return jsonify({"error": "File is too large"}), 413
