@@ -1,0 +1,272 @@
+openapi: 3.1.0
+info:
+  title: PGS Submission Service API
+  description: API for submitting data to the PGS Submission Service.
+  version: 0.1.0
+  contact:
+    email: pgs-info@ebi.ac.uk
+    url: 'https://github.com/PGScatalog/pgs_submission_service'
+  x-logo:
+    url: 'https://www.pgscatalog.org/static/catalog/imgs/PGS_Logo.png'
+    altText: PGS Catalog logo
+  license:
+    name: Apache 2.0
+    url: 'https://www.apache.org/licenses/LICENSE-2.0.html'
+#servers:
+#  - url: 'http://127.0.0.1:5000'
+security:
+  - BearerAuth: []
+paths:
+  /validate_metadata:
+    post:
+      summary: Validate metadata file
+      description: Upload a file to validate its metadata. Returns validation results including errors, warnings, and score names.
+      operationId: validateMetadata
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File to be validated. Expected to be a .xlsx file containing PGS submission metadata.
+            encoding:
+              file:
+                contentType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - valid
+                  - errorMessages
+                  - warningMessages
+                  - scoreNames
+                properties:
+                  valid:
+                    type: boolean
+                    description: Indicates if the metadata is valid
+                  errorMessages:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+                    description: Dictionary of error messages grouped by category
+                  warningMessages:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+                    description: Dictionary of warning messages grouped by category
+                  scoreNames:
+                    type: array
+                    items:
+                      type: string
+                    description: List of score names extracted from validation
+
+        '400':
+          description: Bad request (e.g., missing file)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        '500':
+          description: Unexpected error during validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /globus/mkdir:
+    post:
+      summary: Create a Globus directory
+      description: Creates a directory in Globus for a given unique ID and email address.
+      operationId: globusMkdir
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - unique_id
+                - email_address
+              properties:
+                unique_id:
+                  type: string
+                  minLength: 8
+                  description: Unique identifier for the directory (minimum 8 characters)
+                email_address:
+                  type: string
+                  format: email
+                  description: Valid email address of the user
+
+      responses:
+        '201':
+          description: Directory created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - globusOriginID
+                properties:
+                  globusOriginID:
+                    type: string
+                    description: ID of the created Globus collection
+
+        '400':
+          description: Invalid request payload (missing fields or invalid format)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+        '409':
+          description: Resource already exists (a folder with the same unique_id already exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobusErrorResponse'
+
+        '404':
+          description: User not found (email address does not correspond to a valid Globus user)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobusErrorResponse'
+
+  /globus/{unique_id}:
+    delete:
+      summary: Deactivate and delete a Globus directory
+      operationId: globusDeactivateDir
+
+      parameters:
+        - name: unique_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the directory
+
+      responses:
+        '200':
+          description: Endpoint deactivated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Endpoint deactivated successfully.
+
+        '404':
+          description: Resource not found (unique_id does not correspond to an existing directory)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+        '500':
+          description: Failed to deactivate endpoint
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+    get:
+      summary: Get contents of a Globus directory
+      operationId: globusGetDirContents
+
+      parameters:
+        - name: unique_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the directory
+
+      responses:
+        '200':
+          description: Directory contents retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unique_id:
+                    type: string
+                  data:
+                    type: object
+                    description: Directory listing data (structure depends on backend)
+
+        '404':
+          description: Directory not found
+
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - valid
+        - errorMessages
+        - warningMessages
+      properties:
+        valid:
+          type: boolean
+          example: false
+        errorMessages:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            Undefined:
+              - Unexpected error in input file.
+        warningMessages:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example: {}
+    GlobusErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT signed using RS256
