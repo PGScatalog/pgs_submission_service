@@ -11,3 +11,7 @@ requests==2.33.1
 google-cloud-storage==2.7.0
 
 ./lib/pgs_template_validator-1.1.5b0-py3-none-any.whl
+
+## Pydantic
+pydantic[email]==2.13.3
+pydantic-settings==2.14.0
