@@ -9,7 +9,7 @@ def secure_app(app: Flask):
     """
     Configure the Flask app for security settings.
     """
-    secured = app.config.get("SECURED", False)
+    secured = app.config.get("SECURED", True)
     app.extensions['security'] = {
         "secured": secured,
     }
