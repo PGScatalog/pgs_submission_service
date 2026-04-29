@@ -25,18 +25,18 @@ def home():
     return "<h1>PGS Catalog metadata validator</h1><p>This service validates the Metadata files schema and content.</p>\n"
 
 
-def add_report_error(depositon_report: dict, report: dict):
+def add_report_error(deposition_report: dict, report: dict):
     for spreadsheet in report:
         errors = []
-        if spreadsheet not in depositon_report.keys():
-            depositon_report[spreadsheet] = []
+        if spreadsheet not in deposition_report.keys():
+            deposition_report[spreadsheet] = []
         for message in report[spreadsheet]:
             formatted_message = ''
             if report[spreadsheet][message][0]:
                 formatted_message += "(Lines: {}) ".format(report[spreadsheet][message][0])
             formatted_message += message
             errors.append(formatted_message)
-        depositon_report[spreadsheet].extend(errors)
+        deposition_report[spreadsheet].extend(errors)
 
 
 @bp.route('/validate_metadata', methods=['POST'])
