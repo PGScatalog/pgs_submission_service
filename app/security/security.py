@@ -9,7 +9,7 @@ def secure_app(app: Flask):
     """
     Configure the Flask app for security settings.
     """
-    secured = app.config.get("SECURED", False)
+    secured = app.config.get("SECURED", True)
     app.extensions['security'] = {
         "secured": secured,
     }
@@ -23,7 +23,7 @@ def secure_app(app: Flask):
             raise e
 
         app.extensions['security'].update({
-            "public_key": public_key,
+            "public_key": public_key, # TODO: get it from Google Secret Manager in production
             "expected_issuer": app.config.get("JWT_EXPECTED_ISSUER"),
             "expected_audience": app.config.get("JWT_EXPECTED_AUDIENCE")
         })
