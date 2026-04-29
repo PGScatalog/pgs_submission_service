@@ -1,8 +1,31 @@
+import os
 from functools import wraps
 
 import jwt
 from flask import jsonify, request, g, current_app, Flask
 from jwt import InvalidTokenError
+
+
+def _load_public_key(app: Flask) -> str:
+    """Load the public key for JWT verification.
+     - In production (App Engine), load the key from GCP Secret Manager.
+     - In local development, load the key from a file specified in the config (default: public.pem)."""
+    if os.getenv("GAE_ENV"):  # set automatically by App Engine
+        app.logger.info("Running in production environment, loading public key from GCP Secret Manager")
+        from google.cloud import secretmanager
+        client = secretmanager.SecretManagerServiceClient()
+        project_id = app.config.get("GCP_PROJECT_NAME", None)
+        secret_name = app.config.get("GAE_SECRET_KEY_NAME", None)
+        if not project_id or not secret_name:
+            app.logger.error("Missing GCP_PROJECT_NAME or GAE_SECRET_KEY_NAME in production environment")
+            raise RuntimeError("Missing GCP_PROJECT_NAME or GAE_SECRET_KEY_NAME in production environment")
+        name = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
+        return client.access_secret_version(name=name).payload.data.decode("utf-8")
+    else:
+        app.logger.info("Running in local environment, loading public key from file")
+        key_file = app.config.get("LOCAL_PUBLIC_KEY_FILE", "public.pem")
+        with open(key_file, "r") as f:
+            return f.read()
 
 
 def secure_app(app: Flask):
@@ -16,14 +39,13 @@ def secure_app(app: Flask):
     if secured:
         app.logger.info("Security is enabled. JWT authentication will be required for protected routes.")
         try:
-            with open(app.config.get("PUBLIC_KEY_FILE", "public.pem"), "r") as f:
-                public_key = f.read()
+            public_key = _load_public_key(app)
         except Exception as e:
             app.logger.error(f"Failed to load public key: {e}")
-            raise e
+            raise
 
         app.extensions['security'].update({
-            "public_key": public_key, # TODO: get it from Google Secret Manager in production
+            "public_key": public_key,
             "expected_issuer": app.config.get("JWT_EXPECTED_ISSUER"),
             "expected_audience": app.config.get("JWT_EXPECTED_AUDIENCE")
         })
