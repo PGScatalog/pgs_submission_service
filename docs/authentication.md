@@ -28,3 +28,26 @@ Your JWT payload must include the following claims:
 Add the token to every request as a Bearer token:
 
 ``Authorization: Bearer <your_token>``
+
+
+## Example for Generating a JWT Token
+
+### Python
+
+```python
+import jwt
+from datetime import datetime, timedelta, timezone
+
+with open("private.pem", "r") as f:
+    private_key = f.read()
+
+payload = {
+    "iss": "gwas-deposition-app",
+    "aud": "pgs-deposition-api",
+    "iat": datetime.now(timezone.utc),
+    "exp": datetime.now(timezone.utc) + timedelta(hours=1)
+}
+
+token = jwt.encode(payload, private_key, algorithm="RS256")
+print(token)
+```
