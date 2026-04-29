@@ -127,6 +127,8 @@ def globus_deactivate_dir(unique_id):
             return make_response(jsonify({"error": "Failed to deactivate endpoint."}), 500)
     except globus.ResourceNotFoundException as e:
         return jsonify({"error": str(e)}), 404
+    except globus.MultipleResourcesFoundException as e:
+        return jsonify({"error": str(e)}), 409
 
 
 @bp.route("/globus/<unique_id>")

@@ -26,6 +26,10 @@ class ResourceNotFoundException(GlobusException):
     pass
 
 
+class MultipleResourcesFoundException(GlobusException):
+    pass
+
+
 class ResourceAlreadyExistsException(GlobusException):
     pass
 
@@ -219,17 +223,18 @@ def remove_endpoint_and_delete_directory(uid) -> bool | int:
 def _get_endpoint_id_from_uid(uid: str, transfer_client: TransferClient) -> str | None:
     #search_pattern = f"-{uid[0:8]}"
     search_pattern = f"-{uid}"
-    endpoint_id = None
-    # TODO: This search may return multiple results if there are multiple endpoints with similar UIDs.
-    #  If using a local DB in the future, we should use it instead to map the unique id to the endpoint id.
     results = transfer_client.endpoint_search(search_pattern, filter_scope="shared-by-me")
-    if results.get("DATA"):
-        endpoint_id = results.get("DATA")[0].get("id")
+    data = results.get("DATA", [])
 
-    if not endpoint_id:
+    if not data:
         logger.warning(f"No endpoint found for UID: {uid} with search pattern: {search_pattern}")
         raise ResourceNotFoundException(f"No endpoint found for UID: {uid}")
-    return endpoint_id
+
+    if len(data) > 1:
+        logger.warning(f"Multiple endpoints found for UID: {uid}")
+        raise MultipleResourcesFoundException(f"Multiple endpoints found for UID: {uid}")
+
+    return data[0].get("id")
 
 
 def _deactivate_endpoint(endpoint_id: str, gcs_client: GCSClient) -> int:
