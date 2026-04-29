@@ -1,12 +1,15 @@
 import pydantic
 from flask import Flask
 from flask_cors import CORS
+from pydantic_settings import BaseSettings
 
+import config
 from app.security.security import secure_app
-from config import GlobusConfig
 
 
-def create_app(config_object="config.Config"):
+
+
+def create_app(config_object: BaseSettings = config.Config()):
     app = Flask(__name__)
 
     app.config.from_object(config_object)
@@ -19,7 +22,7 @@ def create_app(config_object="config.Config"):
 
     # Globus config
     try:
-        globus_cfg = GlobusConfig()
+        globus_cfg = config.GlobusConfig()
         app.extensions["globus"] = globus_cfg
     except pydantic.ValidationError as e:
         missing = [err["loc"][0] for err in e.errors()]

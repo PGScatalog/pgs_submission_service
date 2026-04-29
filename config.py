@@ -18,6 +18,10 @@ class Config(BaseSettings):
     MAX_CONTENT_LENGTH: int = 4 * 1000 * 1000
     DEBUG: bool = False
 
+    model_config = SettingsConfigDict(
+        extra="ignore",
+    )
+
 
 class GlobusConfig(BaseSettings):
     MAPPED_COLLECTION_ID: str
