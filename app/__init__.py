@@ -8,6 +8,10 @@ import config
 from app.security.security import secure_app
 
 
+# Initialize the rate limiter.
+# We use a lambda function to provide a key function that always returns the same value ("global"),
+# which means the limit will be applied globally across all clients.
+# This is defined at the module level so that it can be imported and used in the routes for fine-tuning.
 limiter = Limiter(
         lambda: "global",
         default_limits=["60 per hour"],
@@ -15,6 +19,8 @@ limiter = Limiter(
 
 
 def create_app(config_object: BaseSettings = config.Config()):
+    """Create and configure the Flask application.
+    The config_object type should be a subclass of BaseSettings, so that Pydantic can load environment variables properly."""
     app = Flask(__name__)
 
     app.config.from_object(config_object)
