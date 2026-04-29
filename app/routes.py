@@ -2,7 +2,7 @@ import io
 import logging
 
 import pydantic
-from flask import jsonify, request, Blueprint, make_response, abort, send_file
+from flask import jsonify, request, Blueprint, make_response, abort
 from pydantic import BaseModel, EmailStr, Field
 
 import app.services.metadata_validator as metadata_validator
