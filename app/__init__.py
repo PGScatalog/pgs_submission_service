@@ -1,12 +1,17 @@
 import pydantic
 from flask import Flask
 from flask_cors import CORS
+from flask_limiter import Limiter
 from pydantic_settings import BaseSettings
 
 import config
 from app.security.security import secure_app
 
 
+limiter = Limiter(
+        lambda: "global",
+        default_limits=["60 per hour"],
+    )
 
 
 def create_app(config_object: BaseSettings = config.Config()):
@@ -16,6 +21,9 @@ def create_app(config_object: BaseSettings = config.Config()):
 
     # CORS settings
     CORS(app, resources={r"/": {"origins": "*"}})
+
+    # Rate limiting settings
+    limiter.init_app(app)
 
     # Set up security
     secure_app(app)
