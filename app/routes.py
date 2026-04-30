@@ -7,6 +7,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 import app.services.metadata_validator as metadata_validator
 import app.services.globus as globus
+from app import limiter
 
 from app.security.security import require_auth
 
@@ -15,11 +16,13 @@ bp = Blueprint("main", __name__)
 
 
 @bp.route("/robots.txt")
+@limiter.exempt
 def robots_dot_txt():
     return "User-agent: *\nDisallow: /"
 
 
 @bp.route('/', methods=['GET'])
+@limiter.exempt
 @require_auth
 def home():
     return "<h1>PGS Catalog metadata validator</h1><p>This service validates the Metadata files schema and content.</p>\n"
@@ -132,6 +135,7 @@ def globus_deactivate_dir(unique_id):
 
 
 @bp.route("/globus/<unique_id>")
+@limiter.limit("10 per minute")
 @require_auth
 def globus_get_dir_contents(unique_id):
     resp = {"unique_id": unique_id}
@@ -144,6 +148,7 @@ def globus_get_dir_contents(unique_id):
 
 
 @bp.route("/globus/test")
+@limiter.limit("10 per minute")
 @require_auth
 def globus_test():
     globus.test_globus_connection()
@@ -159,3 +164,8 @@ def handle_unexpected_error(e):
 @bp.errorhandler(413)
 def file_too_large(e):
     return jsonify({"error": "File is too large"}), 413
+
+
+@bp.errorhandler(429)
+def too_many_requests(e):
+    return jsonify({"error": "Too many requests, please try again later"}), 429

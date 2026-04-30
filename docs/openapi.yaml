@@ -1,7 +1,12 @@
 openapi: 3.1.0
 info:
   title: PGS Submission Service API
-  description: API for submitting data to the PGS Submission Service.
+  description: |
+    API for submitting data to the PGS Submission Service.
+    
+    ## Authentication
+    See [authentication.md](authentication.md) for instructions on generating tokens.
+
   version: 0.1.0
   contact:
     email: pgs-info@ebi.ac.uk
