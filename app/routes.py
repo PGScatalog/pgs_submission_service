@@ -10,7 +10,7 @@ import app.services.globus as globus
 from app import limiter
 
 from app.security.security import require_auth
-
+import app.services.db as db
 
 bp = Blueprint("main", __name__)
 
@@ -104,12 +104,19 @@ def globus_mkdir():
 
     try:
         collection_id = globus.mkdir(payload.unique_id, payload.email_address)
+        db.create_globus_folder(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=collection_id)
+        db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address,
+                           collection_id=collection_id, success=True)
         return jsonify({"globusOriginID": collection_id}), 201
     except globus.ResourceAlreadyExistsException as e:
         logging.getLogger(__name__).error(str(e))
+        db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
+                           success=False, error=str(e))
         return jsonify({"error": str(e)}), 409
     except globus.ResourceNotFoundException as e:
         logging.getLogger(__name__).error(str(e))
+        db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
+                           success=False, error=str(e))
         return jsonify({"error": str(e)}), 404
 
 
@@ -127,12 +134,16 @@ def globus_deactivate_dir(unique_id):
         status = response.get("status", False)
         endpoint_id = response.get("endpoint_id", None)
         if status:
+            db.disable_globus_folder(unique_id=unique_id)
+            db.audit_globus_disable(unique_id=unique_id, collection_id=endpoint_id, success=True)
             return make_response(jsonify({"message": "Endpoint deactivated successfully."}), 200)
         else:
+            db.audit_globus_disable(unique_id=unique_id, collection_id=endpoint_id, success=False, error="Unknown error during deactivation")
             return make_response(jsonify({"error": "Failed to deactivate endpoint."}), 500)
     except globus.ResourceNotFoundException as e:
         return jsonify({"error": str(e)}), 404
     except globus.MultipleResourcesFoundException as e:
+        db.audit_globus_disable(unique_id=unique_id, success=False, error=str(e))
         return jsonify({"error": str(e)}), 409
 
 

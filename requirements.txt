@@ -12,6 +12,9 @@ requests==2.33.1
 ## Google Cloud Secret Manager
 google-cloud-secret-manager==2.27.0
 
+## Google Firestore
+google-cloud-firestore==2.27.0
+
 ## Globus
 globus-sdk==4.5.0
 
