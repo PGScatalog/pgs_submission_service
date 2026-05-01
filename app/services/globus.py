@@ -196,7 +196,7 @@ def _ensure_user_credential(gcs_client: GCSClient, config: GlobusConfig):
 
 
 @validate_call()
-def remove_endpoint_and_delete_directory(uid) -> bool | int:
+def remove_endpoint_and_delete_directory(uid) -> dict:
     """Remove the Globus endpoint associated with the given UID and delete the corresponding directory from the mapped collection."""
     logger.info(f">> remove_endpoint_and_all_contents {uid=}")
     # TODO: remove folder after deactivating endpoint, currently the folder is removed before deactivating endpoint
@@ -204,20 +204,25 @@ def remove_endpoint_and_delete_directory(uid) -> bool | int:
     #  This issue may be related to the delay of Globus in updating the endpoint status after deactivation,
     #  which causes the folder to be still locked for a short period of time after deactivation.
     # TODO: maybe just tag the endpoint as inactive, and have a separate process to clean up the folders of inactive endpoints.
+    response = {
+        "status": None
+    }
     with _client_app() as (app, config):
         with TransferClient(app=app) as transfer_client:
             deactivate_status = False
             endpoint_id = _get_endpoint_id_from_uid(uid, transfer_client=transfer_client)
             logger.info(f">> remove_endpoint_and_all_contents {uid=} :: {endpoint_id=}")
             if endpoint_id:
+                response['endpoint_id'] = endpoint_id
                 logger.info(f">> remove_endpoint_and_all_contents {uid=} :: {endpoint_id=} true")
                 if _remove_path(path_to_remove=uid, transfer_client=transfer_client, config=config):
                     with GCSClient(config.ENDPOINT_HOSTNAME, app=app) as gcs_client:
                         logger.info(f">> remove_endpoint_and_all_contents {uid=} :: remove_path true")
                         deactivate_status = _deactivate_endpoint(endpoint_id, gcs_client)
                         logger.info(f">> remove_endpoint_and_all_contents {uid=} :: {deactivate_status=}")
+                        response["status"] = deactivate_status
 
-    return deactivate_status
+    return response
 
 
 def _get_endpoint_id_from_uid(uid: str, transfer_client: TransferClient) -> str | None:

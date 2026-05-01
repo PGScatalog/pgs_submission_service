@@ -123,7 +123,9 @@ class MkdirRequest(BaseModel):
 @require_auth
 def globus_deactivate_dir(unique_id):
     try:
-        status = globus.remove_endpoint_and_delete_directory(unique_id)
+        response = globus.remove_endpoint_and_delete_directory(unique_id)
+        status = response.get("status", False)
+        endpoint_id = response.get("endpoint_id", None)
         if status:
             return make_response(jsonify({"message": "Endpoint deactivated successfully."}), 200)
         else:
