@@ -20,6 +20,10 @@ class Config(BaseSettings):
     MAX_CONTENT_LENGTH: int = 4 * 1000 * 1000
     DEBUG: bool = False
 
+    # Database
+    FIRESTORE_PROJECT_ID: str | None = None
+    FIRESTORE_DATABASE_ID: str | None = None
+
     model_config = SettingsConfigDict(
         extra="ignore",
     )
