@@ -13,6 +13,7 @@ from app.security.security import require_auth
 import app.services.db as db
 
 bp = Blueprint("main", __name__)
+logger = logging.getLogger(__name__)
 
 
 @bp.route("/robots.txt")
@@ -56,7 +57,7 @@ def validate_metadata():
         bin_file = io.BytesIO(file.read())
         validation_results = metadata_validator.validate_metadata(bin_file)
     except Exception as e:
-        logging.getLogger(__name__).error(str(e))
+        logger.error(str(e))
         return jsonify({
             "valid": False,
             "errorMessages": {
@@ -109,12 +110,12 @@ def globus_mkdir():
                            collection_id=collection_id, success=True)
         return jsonify({"globusOriginID": collection_id}), 201
     except globus.ResourceAlreadyExistsException as e:
-        logging.getLogger(__name__).error(str(e))
+        logger.error(str(e))
         db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
                            success=False, error=str(e))
         return jsonify({"error": str(e)}), 409
     except globus.ResourceNotFoundException as e:
-        logging.getLogger(__name__).error(str(e))
+        logger.error(str(e))
         db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
                            success=False, error=str(e))
         return jsonify({"error": str(e)}), 404
@@ -170,7 +171,7 @@ def globus_test():
 
 @bp.errorhandler(Exception)
 def handle_unexpected_error(e):
-    logging.getLogger(__name__).error(f"Unexpected error: {e}")
+    logger.error(f"Unexpected error: {e}")
     return jsonify({"error": "An unexpected error occurred"}), 500
 
 
