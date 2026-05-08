@@ -196,57 +196,74 @@ def _ensure_user_credential(gcs_client: GCSClient, config: GlobusConfig):
 
 
 @validate_call()
-def remove_endpoint_and_delete_directory(uid) -> dict:
-    """Remove the Globus endpoint associated with the given UID and delete the corresponding directory from the mapped collection."""
-    logger.info(f">> remove_endpoint_and_all_contents {uid=}")
-    # TODO: remove folder after deactivating endpoint, currently the folder is removed before deactivating endpoint
-    #  to avoid the issue of not being able to remove folder after deactivating endpoint.
-    #  This issue may be related to the delay of Globus in updating the endpoint status after deactivation,
-    #  which causes the folder to be still locked for a short period of time after deactivation.
-    # TODO: maybe just tag the endpoint as inactive, and have a separate process to clean up the folders of inactive endpoints.
-    response = {
-        "status": None
-    }
+def remove_endpoint(endpoint_id: str) -> None:
+    """
+    Deactivate the Globus guest collection associated with the given endpoint ID.
+    If the endpoint is not found, a warning is logged and a ResourceNotFoundException is raised. \
+    If the deactivation fails for any other reason, a GlobusException is raised.
+    """
+    with _client_app() as (app, config):
+        with GCSClient(config.ENDPOINT_HOSTNAME, app=app) as gcs_client:
+            deactivate_status = _deactivate_endpoint(endpoint_id, gcs_client)
+            match deactivate_status:
+                case s if 200 <= s < 300:
+                    logger.info(f"Successfully deactivated endpoint {endpoint_id}.")
+                case 404:
+                    logger.warning(f"Endpoint {endpoint_id} not found during deactivation.")
+                    raise ResourceNotFoundException(f"Endpoint {endpoint_id} not found.")
+                case _:
+                    logger.error(f"Failed to deactivate endpoint {endpoint_id}. HTTP status: {deactivate_status}")
+                    raise GlobusException(f"Failed to deactivate endpoint {endpoint_id}. HTTP status: {deactivate_status}")
+
+
+def _deactivate_endpoint(endpoint_id: str, gcs_client: GCSClient) -> int:
+    """
+    Deactivate the Globus guest collection associated with the given endpoint ID and
+    return the HTTP status code of the operation.
+    """
+    logger.info(f">> deactivate_endpoint {endpoint_id=}")
+    try:
+        response = gcs_client.delete_collection(endpoint_id)
+        status = response.http_status
+    except GCSAPIError as e:
+        logger.error(f"[GCSAPIError] Error deactivating endpoint {endpoint_id}: {e}")
+        status = e.http_status
+    logger.info(f">> deactivate_endpoint {endpoint_id=} :: {status=}")
+    return status
+
+
+@validate_call()
+def search_endpoint_id_from_uid(uid: str) -> str | None:
+    """
+    Search for the endpoint ID associated with the given UID in the mapped collection.
+    Return the endpoint ID if found, or None if not found. \
+    Raises MultipleResourcesFoundException if multiple endpoints are found for the UID.
+    """
     with _client_app() as (app, config):
         with TransferClient(app=app) as transfer_client:
-            deactivate_status = False
-            endpoint_id = _get_endpoint_id_from_uid(uid, transfer_client=transfer_client)
-            logger.info(f">> remove_endpoint_and_all_contents {uid=} :: {endpoint_id=}")
-            if endpoint_id:
-                response['endpoint_id'] = endpoint_id
-                logger.info(f">> remove_endpoint_and_all_contents {uid=} :: {endpoint_id=} true")
-                if _remove_path(path_to_remove=uid, transfer_client=transfer_client, config=config):
-                    with GCSClient(config.ENDPOINT_HOSTNAME, app=app) as gcs_client:
-                        logger.info(f">> remove_endpoint_and_all_contents {uid=} :: remove_path true")
-                        deactivate_status = _deactivate_endpoint(endpoint_id, gcs_client)
-                        logger.info(f">> remove_endpoint_and_all_contents {uid=} :: {deactivate_status=}")
-                        response["status"] = deactivate_status
-
-    return response
+            return _search_endpoint_id_from_uid(uid, transfer_client=transfer_client)
 
 
-def _get_endpoint_id_from_uid(uid: str, transfer_client: TransferClient) -> str | None:
-    #search_pattern = f"-{uid[0:8]}"
+def _search_endpoint_id_from_uid(uid: str, transfer_client: TransferClient) -> str | None:
+    """
+    Search for the endpoint ID associated with the given UID in the mapped collection.
+    Return the endpoint ID if found, or None if not found. \
+    Raises MultipleResourcesFoundException if multiple endpoints are found for the UID.
+    """
     search_pattern = f"-{uid}"
     results = transfer_client.endpoint_search(search_pattern, filter_scope="shared-by-me")
     data = results.get("DATA", [])
 
     if not data:
         logger.warning(f"No endpoint found for UID: {uid} with search pattern: {search_pattern}")
-        raise ResourceNotFoundException(f"No endpoint found for UID: {uid}")
+        return None
 
     if len(data) > 1:
         logger.warning(f"Multiple endpoints found for UID: {uid}")
         raise MultipleResourcesFoundException(f"Multiple endpoints found for UID: {uid}")
 
+    logger.info(f"Endpoint found for UID: {uid} with search pattern: {search_pattern}. Endpoint ID: {data[0].get('id')}")
     return data[0].get("id")
-
-
-def _deactivate_endpoint(endpoint_id: str, gcs_client: GCSClient) -> int:
-    logger.info(f">> deactivate_endpoint {endpoint_id=}")
-    status = gcs_client.delete_collection(endpoint_id)
-    logger.info(f">> deactivate_endpoint {endpoint_id=} :: {status=}")
-    return status.http_status
 
 
 def _remove_path(path_to_remove: str, transfer_client: TransferClient, config: GlobusConfig):

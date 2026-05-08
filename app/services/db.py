@@ -91,3 +91,17 @@ def delete_globus_folder(unique_id: str):
         })
     except Exception as e:
         logger.error(f"Failed to update folder status: {e}")
+
+
+def get_endpoint_id_by_unique_id(unique_id: str) -> str | None:
+    """Retrieve the Globus collection ID associated with a unique ID.
+    Returns None if not found."""
+    try:
+        doc = get_db().collection(GLOBUS_FOLDERS_COLLECTION).document(unique_id).get()
+        if doc.exists:
+            return doc.to_dict().get("collection_id")
+        else:
+            return None
+    except Exception as e:
+        logger.error(f"Failed to retrieve collection ID: {e}")
+        return None

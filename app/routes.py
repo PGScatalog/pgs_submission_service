@@ -130,22 +130,40 @@ class MkdirRequest(BaseModel):
 @bp.route("/globus/<unique_id>", methods=["DELETE"])
 @require_auth
 def globus_deactivate_dir(unique_id):
+    endpoint_id = None
     try:
-        response = globus.remove_endpoint_and_delete_directory(unique_id)
-        status = response.get("status", False)
-        endpoint_id = response.get("endpoint_id", None)
-        if status:
+        # Attempt to find it in DB first
+        endpoint_id = db.get_endpoint_id_by_unique_id(unique_id)
+
+        # If didn't find it in DB, attempt to find it in the mapped collection
+        if not endpoint_id:
+            logger.warning(f"Unique ID {unique_id} not found in DB, attempting to find in mapped collection")
+            endpoint_id = globus.search_endpoint_id_from_uid(unique_id)
+
+        if endpoint_id:
+            globus.remove_endpoint(endpoint_id=endpoint_id)
+
+            # DB logging
             db.disable_globus_folder(unique_id=unique_id)
             db.audit_globus_disable(unique_id=unique_id, collection_id=endpoint_id, success=True)
+
             return make_response(jsonify({"message": "Endpoint deactivated successfully."}), 200)
         else:
-            db.audit_globus_disable(unique_id=unique_id, collection_id=endpoint_id, success=False, error="Unknown error during deactivation")
-            return make_response(jsonify({"error": "Failed to deactivate endpoint."}), 500)
+            raise globus.ResourceNotFoundException(f"No Globus endpoint found for unique ID {unique_id}")
     except globus.ResourceNotFoundException as e:
         return jsonify({"error": str(e)}), 404
     except globus.MultipleResourcesFoundException as e:
         db.audit_globus_disable(unique_id=unique_id, success=False, error=str(e))
         return jsonify({"error": str(e)}), 409
+    except Exception as e:
+        logger.error(f"Failed to deactivate endpoint for unique ID {unique_id}: {e}")
+        db.audit_globus_disable(
+            unique_id=unique_id,
+            collection_id=endpoint_id,
+            success=False,
+            error=str(e)
+        )
+        return make_response(jsonify({"error": "Failed to deactivate endpoint."}), 500)
 
 
 @bp.route("/globus/<unique_id>")
@@ -171,8 +189,13 @@ def globus_test():
 
 @bp.errorhandler(Exception)
 def handle_unexpected_error(e):
-    logger.error(f"Unexpected error: {e}")
+    logger.error(f"Unexpected error: {type(e)}: {e}")
     return jsonify({"error": "An unexpected error occurred"}), 500
+
+
+@bp.errorhandler(globus.ResourceNotFoundException)
+def not_found(e):
+    return jsonify({"error": "Globus resource not found"}), 404
 
 
 @bp.errorhandler(413)
