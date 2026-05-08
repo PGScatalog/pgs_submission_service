@@ -259,7 +259,9 @@ def _search_endpoint_id_from_uid(uid: str, transfer_client: TransferClient) -> s
         return None
 
     if len(data) > 1:
-        logger.warning(f"Multiple endpoints found for UID: {uid}")
+        logger.warning(f"Multiple endpoints found for UID: {uid}:")
+        for endpoint in data:
+            logger.warning(f" - Endpoint ID: {endpoint.get('id')}, Display Name: {endpoint.get('display_name')}")
         raise MultipleResourcesFoundException(f"Multiple endpoints found for UID: {uid}")
 
     logger.info(f"Endpoint found for UID: {uid} with search pattern: {search_pattern}. Endpoint ID: {data[0].get('id')}")
