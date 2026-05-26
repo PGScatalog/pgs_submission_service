@@ -110,15 +110,15 @@ def globus_mkdir():
                            collection_id=collection_id, success=True)
         return jsonify({"globusOriginID": collection_id}), 201
     except globus.ResourceAlreadyExistsException as e:
-        logger.error(str(e))
+        logger.exception("Failed to create Globus directory: resource already exists")
         db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
                            success=False, error=str(e))
-        return jsonify({"error": str(e)}), 409
-    except globus.ResourceNotFoundException as e:
-        logger.error(str(e))
+        return jsonify({"error": "Resource already exists."}), 409
+    except globus.UserNotFoundException as e:
+        logger.exception("Failed to create Globus directory: user not found")
         db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
                            success=False, error=str(e))
-        return jsonify({"error": str(e)}), 404
+        return jsonify({"error": "User not found or not linked to Globus."}), 404
 
 
 class MkdirRequest(BaseModel):
@@ -151,10 +151,11 @@ def globus_deactivate_dir(unique_id):
         else:
             raise globus.ResourceNotFoundException(f"No Globus endpoint found for unique ID {unique_id}")
     except globus.ResourceNotFoundException as e:
-        return jsonify({"error": str(e)}), 404
+        logger.warning(f"No endpoint found for unique ID {unique_id}: {e}")
+        return jsonify({"error": "Globus resource not found"}), 404
     except globus.MultipleResourcesFoundException as e:
         db.audit_globus_disable(unique_id=unique_id, success=False, error=str(e))
-        return jsonify({"error": str(e)}), 409
+        return jsonify({"error": "Multiple matching Globus resources found."}), 409
     except Exception as e:
         logger.error(f"Failed to deactivate endpoint for unique ID {unique_id}: {e}")
         db.audit_globus_disable(
