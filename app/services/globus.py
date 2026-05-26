@@ -26,6 +26,10 @@ class ResourceNotFoundException(GlobusException):
     pass
 
 
+class UserNotFoundException(GlobusException):
+    pass
+
+
 class MultipleResourcesFoundException(GlobusException):
     pass
 
@@ -80,7 +84,7 @@ def mkdir(unique_id: str, email_address: str) -> str:
         # Checking if the user exists in Globus and get their identity ID
         identity_id = _check_user(app, email_address) if email_address else None
         if not identity_id:
-            raise ResourceNotFoundException("Account not linked to Globus")
+            raise UserNotFoundException("Account not linked to Globus")
 
         # Create the directory in the mapped collection and the FTP directory
         with TransferClient(app=app) as transfer_client:
