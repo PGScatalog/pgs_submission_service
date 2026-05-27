@@ -2,9 +2,9 @@ stages:
   - test
 
 include:
-  - template: Jobs/Dependency-Scanning.latest.gitlab-ci.yml
-  - template: Jobs/SAST.gitlab-ci.yml
-  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Dependency-Scanning.latest..gitlab-ci.yml
+  - template: Jobs/SAST..gitlab-ci.yml
+  - template: Jobs/Secret-Detection..gitlab-ci.yml
 
 variables:
   DS_ENFORCE_NEW_ANALYZER: 'true'
