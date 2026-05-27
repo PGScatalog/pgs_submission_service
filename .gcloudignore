@@ -13,6 +13,9 @@
 .git
 .gitignore
 
+# Gitlab CI:
+.gitlab-ci.yml
+
 # Python pycache:
 **/__pycache__
 
