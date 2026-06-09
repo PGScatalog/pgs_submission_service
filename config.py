@@ -24,6 +24,11 @@ class Config(BaseSettings):
     FIRESTORE_PROJECT_ID: str | None = None
     FIRESTORE_DATABASE_ID: str | None = None
 
+    # Google Drive transfer
+    METADATA_FILE_TRANSFER_ENABLED: bool = True
+    GOOGLE_SERVICE_ACCOUNT_KEY_PATH: str | None = None
+    GOOGLE_DRIVE_SHARED_FOLDER_ID: str | None = None
+
     model_config = SettingsConfigDict(
         extra="ignore",
     )
@@ -48,3 +53,4 @@ class GlobusConfig(BaseSettings):
 class TestConfig(Config):
     SECURED: bool = False
     DEBUG: bool = True
+    METADATA_FILE_TRANSFER_ENABLED: bool = False
