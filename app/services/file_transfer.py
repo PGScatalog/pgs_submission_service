@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
 from flask import current_app
 from werkzeug.utils import secure_filename as werkzeug_secure_filename
+import app.services.db as db
 
 logger = logging.getLogger(__name__)
 
@@ -85,12 +86,16 @@ def upload_file_to_google_drive(file_stream: BinaryIO, file_name):
             ).execute()
             file_id = uploaded["id"]
         logger.info(f"File transfer complete (file ID: '{file_id}').")
+        db.audit_file_transfer(file_name=file_name, success=True, error=None)
 
     except HttpError as e:
         logger.error(
             "Google Drive API error during upload of '%s': [%s] %s",
             file_name, e.status_code, e.error_details,
         )
+        error_msg = f"Google Drive API error during upload of '{file_name}': [{e.response.status_code}] {e.response.text}"
+        logger.error(error_msg, exc_info=True)
+        db.audit_file_transfer(file_name=file_name, success=False, error=error_msg)
         raise
 
     except Exception as e:
@@ -98,5 +103,7 @@ def upload_file_to_google_drive(file_stream: BinaryIO, file_name):
             "Unexpected error during upload of '%s': %s",
             file_name, e, exc_info=True,
         )
+        error_msg = f"Unexpected error during upload of '{file_name}': {e}"
+        logger.error(error_msg, exc_info=True)
+        db.audit_file_transfer(file_name=file_name, success=False, error=error_msg)
         raise
-
