@@ -9,6 +9,8 @@ _db = None
 GLOBUS_FOLDERS_COLLECTION = "globus_folders"
 GLOBUS_FOLDERS_AUDIT_COLLECTION = "globus_folders_audit"
 
+METADATA_TRANSFER_AUDIT_COLLECTION = "metadata_transfer_audit"
+
 
 def get_db():
     """Get a Firestore client instance. Uses a global variable to ensure only one instance is created per application context."""
@@ -105,3 +107,17 @@ def get_endpoint_id_by_unique_id(unique_id: str) -> str | None:
     except Exception as e:
         logger.error(f"Failed to retrieve collection ID: {e}")
         return None
+
+
+def audit_file_transfer(file_name: str, success: bool, error: str | None = None):
+    """Write an audit entry for a metadata file transfer operation."""
+    try:
+        doc = {
+            "file_name": file_name,
+            "success": success,
+            "error": error,
+            "timestamp": firestore.SERVER_TIMESTAMP,
+        }
+        get_db().collection(METADATA_TRANSFER_AUDIT_COLLECTION).add(doc)
+    except Exception as e:
+        logger.error(f"Failed to write audit log: {e}")

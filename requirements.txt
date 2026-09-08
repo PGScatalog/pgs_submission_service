@@ -12,6 +12,10 @@ requests==2.33.1
 ## Google Cloud Secret Manager
 google-cloud-secret-manager==2.27.0
 
+## Google Storage
+google-auth==2.53.0
+#google-api-python-client==2.197.0
+
 ## Google Firestore
 google-cloud-firestore==2.27.0
 

@@ -2,10 +2,11 @@ import io
 import logging
 
 import pydantic
-from flask import jsonify, request, Blueprint, make_response, abort
+from flask import jsonify, request, Blueprint, make_response, abort, current_app
 from pydantic import BaseModel, EmailStr, Field
 
 import app.services.metadata_validator as metadata_validator
+import app.services.file_transfer as file_transfer
 import app.services.globus as globus
 from app import limiter
 
@@ -54,8 +55,8 @@ def validate_metadata():
     file = request.files['file']
 
     try:
-        bin_file = io.BytesIO(file.read())
-        validation_results = metadata_validator.validate_metadata(bin_file)
+        file_bytes = file.read()
+        validation_results = metadata_validator.validate_metadata(io.BytesIO(file_bytes))
     except Exception as e:
         logger.error(str(e))
         return jsonify({
@@ -67,6 +68,12 @@ def validate_metadata():
             },
             "warningMessages": {}
         })
+
+    if current_app.config.get("METADATA_FILE_TRANSFER_ENABLED", False) and validation_results.valid:
+        try:
+            file_transfer.upload_file_to_google_drive(file_stream=io.BytesIO(file_bytes), file_name=file.filename)
+        except:
+            return jsonify({"error": "An unexpected error occurred"}), 500
 
     valid = True
     public_error_report = {}
