@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings
 import config
 from app.security.security import secure_app
 
+from app.services.document_store import FirestoreStore
 
 # Initialize the rate limiter.
 # We use a lambda function to provide a key function that always returns the same value ("global"),
@@ -33,6 +34,12 @@ def create_app(config_object: BaseSettings = config.Config()):
 
     # Set up security
     secure_app(app)
+
+    # Setting up DB document store
+    app.extensions["document_store"] = FirestoreStore(
+        project=app.config["FIRESTORE_PROJECT_ID"],
+        database=app.config["FIRESTORE_DATABASE_ID"]
+    )
 
     # Globus config
     try:
