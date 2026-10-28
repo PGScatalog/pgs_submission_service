@@ -19,10 +19,18 @@ class Config(BaseSettings):
     # File size limit set to 4MB (average is 400-500K)
     MAX_CONTENT_LENGTH: int = 4 * 1000 * 1000
     DEBUG: bool = False
+    BASE_URL: str | None = None
 
     # Database
     FIRESTORE_PROJECT_ID: str | None = None
     FIRESTORE_DATABASE_ID: str | None = None
+
+    # Storage
+    GCS_BUCKET_NAME: str | None = None
+
+    # Cloud Tasks
+    GCT_LOCATION: str | None = None
+    GCT_QUEUE_NAME: str | None = None
 
     # Google Drive transfer
     METADATA_FILE_TRANSFER_ENABLED: bool = True
