@@ -69,4 +69,8 @@ def create_app(config_object: BaseSettings = config.Config()):
     from .routes import bp
     app.register_blueprint(bp)
 
+    # TODO: refactor
+    from .routes_aync.metadata import bp as metadata_bp
+    app.register_blueprint(metadata_bp)
+
     return app
