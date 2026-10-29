@@ -147,14 +147,12 @@ def create_metadata_validation(unique_id: str, filename: str | None = None):
 
 def report_metadata_validation(unique_id: str, report: dict):
     try:
-        get_store().update(METADATA_VALIDATION_COLLECTION, unique_id, {
-            "status": report["status"],
-            "valid": report["valid"],
-            "scoreNames": report.get("scoreNames", []),
-            "errorMessages": report.get("errorMessages", []),
-            "warningMessages": report.get("warningMessages", []),
+        fields = {
+            "status": report.pop("status", "UNKNOWN"),
             "reported_at": _now(),
-        })
+        }
+        fields.update(report)
+        get_store().update(METADATA_VALIDATION_COLLECTION, unique_id, fields)
     except Exception as e:
         logger.error(f"Failed to report metadata validation (id: {unique_id}): {e}")
 

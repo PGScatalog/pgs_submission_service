@@ -45,8 +45,9 @@ def process_metadata(payload: dict) -> bool:
     try:
         validation_results = metadata_validator.validate_metadata(io.BytesIO(file_bytes))
     except Exception as e:
-        logger.exception("Task %s failed", job_id)
-        db.report_metadata_validation(unique_id=job_id, report={"status": "FAILED", "error": str(e)})
+        logger.error("Task %s failed", job_id)
+        logger.exception(e)
+        db.report_metadata_validation(unique_id=job_id, report={"status": "FAILED"})
         return True  # don't retry bad files
 
     if current_app.config.get("METADATA_FILE_TRANSFER_ENABLED", False) and validation_results.valid:
