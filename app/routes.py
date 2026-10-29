@@ -1,5 +1,6 @@
 import io
 import logging
+import uuid
 
 import pydantic
 from flask import jsonify, request, Blueprint, make_response, abort, current_app
@@ -71,7 +72,9 @@ def validate_metadata():
 
     if current_app.config.get("METADATA_FILE_TRANSFER_ENABLED", False) and validation_results.valid:
         try:
-            file_transfer.upload_file_to_google_drive(file_stream=io.BytesIO(file_bytes), file_name=file.filename)
+            file_transfer.upload_file_to_google_drive(file_stream=io.BytesIO(file_bytes),
+                                                      file_name=file.filename,
+                                                      unique_id=str(uuid.uuid4()))
         except:
             return jsonify({"error": "An unexpected error occurred"}), 500
 

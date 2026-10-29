@@ -113,11 +113,12 @@ def get_endpoint_id_by_unique_id(unique_id: str) -> str | None:
         return None
 
 
-def audit_file_transfer(file_name: str, success: bool, error: str | None = None):
+def audit_file_transfer(file_name: str, unique_id: str, success: bool, error: str | None = None):
     """Write an audit entry for a metadata file transfer operation."""
     try:
         doc = {
             "file_name": file_name,
+            "unique_id": unique_id,
             "success": success,
             "error": error,
             "timestamp": _now(),

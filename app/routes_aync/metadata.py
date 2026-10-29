@@ -51,7 +51,9 @@ def process_metadata(payload: dict) -> bool:
 
     if current_app.config.get("METADATA_FILE_TRANSFER_ENABLED", False) and validation_results.valid:
         try:
-            file_transfer.upload_file_to_google_drive(file_stream=io.BytesIO(file_bytes), file_name=filename)
+            file_transfer.upload_file_to_google_drive(file_stream=io.BytesIO(file_bytes),
+                                                      file_name=filename,
+                                                      unique_id=job_id)
         except Exception:
             logger.exception("Transfer failed for %s", job_id)
             return False  # retry

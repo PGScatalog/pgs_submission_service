@@ -97,7 +97,7 @@ def _update_file(creds, file_id: str, file_stream: BinaryIO) -> None:
     response.raise_for_status()
 
 
-def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str):
+def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str, unique_id: str):
     """
     Upload a file to Google Drive, either creating a new file or updating an existing one with the same name in the
     destination folder.
@@ -118,16 +118,16 @@ def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str):
             file_id = _create_file(creds, dest_folder_id, file_name, file_stream)
 
         logger.info(f"File transfer complete (file ID: '{file_id}').")
-        db.audit_file_transfer(file_name=file_name, success=True, error=None)
+        db.audit_file_transfer(file_name=file_name, unique_id=unique_id, success=True, error=None)
 
     except requests.HTTPError as e:
         error_msg = f"Google Drive API error during upload of '{file_name}': [{e.response.status_code}] {e.response.text}"
         logger.error(error_msg, exc_info=True)
-        db.audit_file_transfer(file_name=file_name, success=False, error=error_msg)
+        db.audit_file_transfer(file_name=file_name, unique_id=unique_id, success=False, error=error_msg)
         raise
 
     except Exception as e:
         error_msg = f"Unexpected error during upload of '{file_name}': {e}"
         logger.error(error_msg, exc_info=True)
-        db.audit_file_transfer(file_name=file_name, success=False, error=error_msg)
+        db.audit_file_transfer(file_name=file_name, unique_id=unique_id, success=False, error=error_msg)
         raise
