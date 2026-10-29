@@ -9,6 +9,7 @@ import app.services.db as db
 import app.services.file_transfer as file_transfer
 import app.services.metadata_validator as metadata_validator
 from app.security.security import require_auth
+from app.security.task_auth import require_cloud_task
 from app.services.file_storage import StorageService
 from app.services.task_queue.task_queue import TaskQueue
 
@@ -16,7 +17,7 @@ bp = Blueprint("metadata", __name__)
 logger = logging.getLogger(__name__)
 
 
-WORKER_PATH = '/tasks/process_metadata'
+WORKER_PATH = '/task/process_metadata'
 
 
 def add_report_error(deposition_report: dict, report: dict):
@@ -111,6 +112,7 @@ def validate_metadata_async():
 
 # --- 2. THE BACKGROUND WORKER ENDPOINT ---
 @bp.route(WORKER_PATH, methods=['POST'])
+@require_cloud_task
 def process_metadata_task():
     # App Engine strips this header from external requests, so it proves the call came from Cloud Tasks.
     if os.getenv("GAE_ENV") and not request.headers.get("X-CloudTasks-QueueName"):

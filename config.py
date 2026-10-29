@@ -31,6 +31,7 @@ class Config(BaseSettings):
     # Cloud Tasks
     GCT_LOCATION: str | None = None
     GCT_QUEUE_NAME: str | None = None
+    GCT_SERVICE_ACCOUNT: str | None = None
 
     # Google Drive transfer
     METADATA_FILE_TRANSFER_ENABLED: bool = True

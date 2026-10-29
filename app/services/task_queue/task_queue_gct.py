@@ -3,6 +3,7 @@ import logging
 
 from pydantic import validate_call
 from google.cloud import tasks_v2
+from google.api_core import exceptions as gexc
 
 from .task_queue import TaskQueue
 
@@ -28,7 +29,7 @@ class CloudTaskQueue(TaskQueue):
     """
 
     @validate_call
-    def __init__(self, project: str, location: str, queue_name: str, base_url: str):
+    def __init__(self, project: str, location: str, queue_name: str, base_url: str, service_account_email: str):
         """Store the queue configuration. No network call is made here.
 
         Args:
@@ -43,6 +44,7 @@ class CloudTaskQueue(TaskQueue):
         self.location = location
         self.queue_name = queue_name
         self.base_url = base_url
+        self.service_account_email = service_account_email
 
         self.client = tasks_v2.CloudTasksClient()
         self.parent = self.client.queue_path(self.project, self.location, self.queue_name)
@@ -71,12 +73,24 @@ class CloudTaskQueue(TaskQueue):
         """
         logger.info(f"Enqueuing CloudTaskQueue: {path} - payload: {payload}")
 
+        url = f"{self.base_url}{path}"
         task = {
             "http_request": {
                 "http_method": tasks_v2.HttpMethod.POST,
-                "url": f"{self.base_url}{path}",
+                "url": url,
                 "headers": {"Content-type": "application/json"},
                 "body": json.dumps(payload).encode(),
+                "oidc_token": {
+                    "service_account_email": self.service_account_email,
+                    "audience": url,  # or just base_url; must match what you verify
+                },
             }
         }
-        self.client.create_task(request={"parent": self.parent, "task": task})
+        try:
+            self.client.create_task(request={"parent": self.parent, "task": task})
+        except gexc.GoogleAPICallError:
+            logger.exception(
+                "Failed to create Cloud Task: queue=%s url=%s service_account=%s payload_bytes=%d",
+                self.parent, url, self.service_account_email, len(task["http_request"]["body"]),
+            )
+            raise

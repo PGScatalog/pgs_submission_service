@@ -46,6 +46,7 @@ def create_app(config_object: BaseSettings = config.Config()):
             location=app.config["GCT_LOCATION"],
             queue_name=app.config["GCT_QUEUE_NAME"],
             base_url=app.config["BASE_URL"],
+            service_account_email=app.config["GCT_SERVICE_ACCOUNT"],
         )
     else:  # Local server
         app.extensions["storage"] = LocalFileStorageService(local_dir="/tmp")
