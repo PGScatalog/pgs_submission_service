@@ -24,4 +24,4 @@ globus-sdk==4.5.0
 
 ## Pydantic
 pydantic[email]==2.13.3
-pydantic-settings==2.14.0
+pydantic-settings==2.14.2
