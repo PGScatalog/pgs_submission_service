@@ -12,8 +12,10 @@ import app.services.db as db
 logger = logging.getLogger(__name__)
 
 METADATA_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
 DRIVE_API_BASE = "https://www.googleapis.com/drive/v3"
 DRIVE_UPLOAD_BASE = "https://www.googleapis.com/upload/drive/v3"
+DRIVE_FILES_URL = DRIVE_API_BASE+"/files"
 
 
 def _get_credentials():
@@ -97,16 +99,71 @@ def _update_file(creds, file_id: str, file_stream: BinaryIO) -> None:
     response.raise_for_status()
 
 
-def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str):
+def _find_folder(creds, parent_folder_id: str, folder_name: str) -> str | None:
+    """Return the ID of a subfolder with the given name under the parent, or None."""
+    escaped_name = folder_name.replace("\\", "\\\\").replace("'", "\\'")
+    query = (
+        f"name = '{escaped_name}' and '{parent_folder_id}' in parents "
+        f"and mimeType = '{FOLDER_MIME_TYPE}' and trashed = false"
+    )
+    response = requests.get(
+        DRIVE_FILES_URL,
+        headers={"Authorization": f"Bearer {creds.token}"},
+        params={
+            "q": query,
+            "fields": "files(id, name)",
+            "supportsAllDrives": "true",
+            "includeItemsFromAllDrives": "true",
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    files = response.json().get("files", [])
+    return files[0]["id"] if files else None
+
+
+def _create_folder(creds, parent_folder_id: str, folder_name: str) -> str:
+    """Create a subfolder under the parent and return its ID."""
+    response = requests.post(
+        DRIVE_FILES_URL,
+        headers={"Authorization": f"Bearer {creds.token}"},
+        params={"supportsAllDrives": "true", "fields": "id"},
+        json={
+            "name": folder_name,
+            "mimeType": FOLDER_MIME_TYPE,
+            "parents": [parent_folder_id],
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()["id"]
+
+
+def _get_or_create_folder(creds, parent_folder_id: str, folder_name: str) -> str:
+    folder_id = _find_folder(creds, parent_folder_id, folder_name)
+    if folder_id:
+        logger.info(f"Using existing subfolder '{folder_name}' (ID: '{folder_id}').")
+        return folder_id
+    folder_id = _create_folder(creds, parent_folder_id, folder_name)
+    logger.info(f"Created subfolder '{folder_name}' (ID: '{folder_id}').")
+    return folder_id
+
+
+def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str, unique_id: str):
     """
-    Upload a file to Google Drive, either creating a new file or updating an existing one with the same name in the
-    destination folder.
+    Upload a file to a subfolder named after `unique_id` inside the shared Google Drive folder.
+    The subfolder is created if it doesn't exist. Within it, the file is either created or,
+    if one with the same name already exists, updated.
     """
     file_name = secure_filename(file_name)
-    dest_folder_id = current_app.config.get("GOOGLE_DRIVE_SHARED_FOLDER_ID")
+    shared_folder_id = current_app.config.get("GOOGLE_DRIVE_SHARED_FOLDER_ID")
 
     try:
         creds = _get_credentials()
+
+        # Subfolder named after unique_id becomes the destination
+        dest_folder_id = _get_or_create_folder(creds, shared_folder_id, str(unique_id))
+
         existing_file_id = _find_existing_file(creds, dest_folder_id, file_name)
 
         if existing_file_id:
@@ -118,16 +175,16 @@ def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str):
             file_id = _create_file(creds, dest_folder_id, file_name, file_stream)
 
         logger.info(f"File transfer complete (file ID: '{file_id}').")
-        db.audit_file_transfer(file_name=file_name, success=True, error=None)
+        db.audit_file_transfer(file_name=file_name, unique_id=unique_id, success=True, error=None)
 
     except requests.HTTPError as e:
         error_msg = f"Google Drive API error during upload of '{file_name}': [{e.response.status_code}] {e.response.text}"
         logger.error(error_msg, exc_info=True)
-        db.audit_file_transfer(file_name=file_name, success=False, error=error_msg)
+        db.audit_file_transfer(file_name=file_name, unique_id=unique_id, success=False, error=error_msg)
         raise
 
     except Exception as e:
         error_msg = f"Unexpected error during upload of '{file_name}': {e}"
         logger.error(error_msg, exc_info=True)
-        db.audit_file_transfer(file_name=file_name, success=False, error=error_msg)
+        db.audit_file_transfer(file_name=file_name, unique_id=unique_id, success=False, error=error_msg)
         raise

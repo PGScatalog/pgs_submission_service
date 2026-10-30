@@ -1,12 +1,23 @@
 import os
 
-from pydantic import SecretStr
+from pydantic import SecretStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def env_bool(var_name: str, default: bool = False) -> bool:
     """Helper function to read boolean environment variables."""
     return os.environ.get(var_name, str(default)).lower() in ("true", "1", "yes")
+
+
+def _gae_base_url() -> str:
+    """Derive the public URL from App Engine's runtime environment."""
+    project = os.getenv("GOOGLE_CLOUD_PROJECT")
+    service = os.getenv("GAE_SERVICE")
+    if project and service:
+        host = (f"{project}.appspot.com" if service == "default"
+                else f"{service}-dot-{project}.appspot.com")
+        return f"https://{host}"
+    return "http://localhost:5000"
 
 
 class Config(BaseSettings):
@@ -19,10 +30,19 @@ class Config(BaseSettings):
     # File size limit set to 4MB (average is 400-500K)
     MAX_CONTENT_LENGTH: int = 4 * 1000 * 1000
     DEBUG: bool = False
+    BASE_URL: str = Field(default_factory=_gae_base_url)
 
     # Database
     FIRESTORE_PROJECT_ID: str | None = None
     FIRESTORE_DATABASE_ID: str | None = None
+
+    # Storage
+    GCS_BUCKET_NAME: str | None = None
+
+    # Cloud Tasks
+    GCT_LOCATION: str | None = None
+    GCT_QUEUE_NAME: str | None = None
+    GCT_SERVICE_ACCOUNT: str | None = None
 
     # Google Drive transfer
     METADATA_FILE_TRANSFER_ENABLED: bool = True
