@@ -37,6 +37,21 @@ def add_report_error(deposition_report: dict, report: dict):
 def process_metadata(payload: dict) -> bool:
     """Returns True when finished (success OR permanent failure), False to request a retry."""
     job_id = payload.get('job_id')
+
+    # Make sure the validation exists and is pending
+    try:
+        metadata_validation = db.get_metadata_validation(job_id)
+    except Exception as e:
+        logger.error("Failed to get existing metadata validation.")
+        logger.exception(e)
+        return False
+    if not metadata_validation:
+        logger.error(f"Metadata validation with id {job_id} could not be found.")
+        return False
+    if metadata_validation.get("status", "UNKNOWN") != "PENDING":
+        logger.error(f"Metadata validation with id {job_id} is not pending.")
+        return False
+
     filename = payload.get('original_filename')
     storage: StorageService = current_app.extensions['storage']
 
