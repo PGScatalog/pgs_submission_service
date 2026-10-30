@@ -135,8 +135,6 @@ def create_metadata_validation(unique_id: str, filename: str | None = None):
             "filename": filename,
             "status": "PENDING",
             "created_at": _now(),
-            "errors": None,
-            "warnings": None,
             "reported_at": None,
         }
         # Use unique_id as document ID for easy lookup
