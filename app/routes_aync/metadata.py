@@ -124,7 +124,7 @@ def validate_metadata_async():
     # Return a 202 Accepted with the job ID so the frontend can poll for status
     return jsonify({
         "message": "Validation and transfer queued successfully.",
-        "jobId": job_id
+        "uniqueId": job_id
     }), 202
 
 
