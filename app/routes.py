@@ -107,7 +107,7 @@ def globus_mkdir():
     - unique_id: A unique identifier for the directory to be created. A 409 response will be returned if a directory \
     with this ID already exists.
     - email_address: The email address of the user for whom the directory is being created. This user must be \
-    with Globus, or a 404 response will be returned."""
+    with Globus, or a 422 response will be returned."""
     try:
         payload = MkdirRequest.model_validate(request.get_json())
     except pydantic.ValidationError as e:
@@ -120,15 +120,15 @@ def globus_mkdir():
                            collection_id=collection_id, success=True)
         return jsonify({"globusOriginID": collection_id}), 201
     except globus.ResourceAlreadyExistsException as e:
-        logger.exception("Failed to create Globus directory: resource already exists")
+        logger.info("Failed to create Globus directory: resource already exists")
         db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
                            success=False, error=str(e))
         return jsonify({"error": "Resource already exists."}), 409
     except globus.UserNotFoundException as e:
-        logger.exception("Failed to create Globus directory: user not found")
+        logger.info("Failed to create Globus directory: user not found")
         db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
                            success=False, error=str(e))
-        return jsonify({"error": "User not found or not linked to Globus."}), 404
+        return jsonify({"error": "User not found or not linked to Globus."}), 422
 
 
 class MkdirRequest(BaseModel):
