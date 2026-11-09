@@ -1,7 +1,7 @@
 import io
 import logging
 import os
-import uuid
+import re
 
 from flask import request, jsonify, current_app, Blueprint
 
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 WORKER_PATH = '/task/process_metadata'
+SUBMISSION_ID_PATTERN = re.compile(r"[A-Za-z0-9]{1,64}")
 
 
 def add_report_error(deposition_report: dict, report: dict):
@@ -97,16 +98,19 @@ def process_metadata(payload: dict) -> bool:
 
 
 # --- 1. THE INGESTION ENDPOINT ---
-@bp.route('/validate_metadata_async', methods=['POST'])
+@bp.route('/validate_metadata_async/<submission_id>', methods=['POST'])
 @require_auth
-def validate_metadata_async():
+def validate_metadata_async(submission_id: str):
     """Receives the file, stores it temporarily, and queues a Cloud Task."""
     if 'file' not in request.files:
         return jsonify({"error": "Missing input file"}), 400
     file = request.files['file']
 
-    # 1. Generate a unique ID for this job
-    job_id = str(uuid.uuid4())
+    # Validate the client-supplied ID
+    if not SUBMISSION_ID_PATTERN.fullmatch(submission_id):
+        return jsonify({"error": "pcp_id is not in valid format"}), 400
+
+    job_id = submission_id
 
     storage_service: StorageService = current_app.extensions['storage']
     task_queue: TaskQueue = current_app.extensions['task_queue']
@@ -121,7 +125,6 @@ def validate_metadata_async():
         path=WORKER_PATH,
     )
 
-    # Return a 202 Accepted with the job ID so the frontend can poll for status
     return jsonify({
         "message": "Validation and transfer queued successfully.",
         "uniqueId": job_id
