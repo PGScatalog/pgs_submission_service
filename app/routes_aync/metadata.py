@@ -150,6 +150,7 @@ def process_metadata_task():
 
 
 @bp.route('/validation_report/<unique_id>', methods=['GET'])
+@require_auth
 def get_validation_report(unique_id):
     validation_report = db.get_metadata_validation(unique_id)
     if not validation_report:
