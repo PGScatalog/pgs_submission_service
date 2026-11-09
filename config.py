@@ -22,11 +22,13 @@ def _gae_base_url() -> str:
 
 class Config(BaseSettings):
     SECURED: bool = True
-    LOCAL_PUBLIC_KEY_FILE: str = "public.pem"
+    LOCAL_PUBLIC_KEY_FILE: str = "public.pem"  # local testing only, used for all issuers
     GCP_PROJECT_NAME: str | None = None
-    GAE_SECRET_KEY_NAME: str | None = None
-    JWT_EXPECTED_ISSUER: str = "gwas-deposition-app"
     JWT_EXPECTED_AUDIENCE: str = "pgs-deposition-api"
+    # Whitelist of trusted issuers -> where to find their public key (GCP Secret Manager)
+    JWT_ISSUERS: dict[str, dict[str, str]] = {
+        "<issuer-name>": {"secret_name": "<key-name>"},
+    }
     # File size limit set to 4MB (average is 400-500K)
     MAX_CONTENT_LENGTH: int = 4 * 1000 * 1000
     DEBUG: bool = False
