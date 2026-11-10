@@ -74,7 +74,7 @@ def validate_metadata():
         try:
             file_transfer.upload_file_to_google_drive(file_stream=io.BytesIO(file_bytes),
                                                       file_name=file.filename,
-                                                      unique_id=str(uuid.uuid4()))
+                                                      submission_id=str(uuid.uuid4()))
         except:
             return jsonify({"error": "An unexpected error occurred"}), 500
 

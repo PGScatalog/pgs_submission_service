@@ -149,7 +149,7 @@ def _get_or_create_folder(creds, parent_folder_id: str, folder_name: str) -> str
     return folder_id
 
 
-def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str, unique_id: str):
+def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str, submission_id: str):
     """
     Upload a file to a subfolder named after `unique_id` inside the shared Google Drive folder.
     The subfolder is created if it doesn't exist. Within it, the file is either created or,
@@ -162,7 +162,7 @@ def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str, unique_id
         creds = _get_credentials()
 
         # Subfolder named after unique_id becomes the destination
-        dest_folder_id = _get_or_create_folder(creds, shared_folder_id, str(unique_id))
+        dest_folder_id = _get_or_create_folder(creds, shared_folder_id, str(submission_id))
 
         existing_file_id = _find_existing_file(creds, dest_folder_id, file_name)
 
@@ -175,16 +175,16 @@ def upload_file_to_google_drive(file_stream: BinaryIO, file_name: str, unique_id
             file_id = _create_file(creds, dest_folder_id, file_name, file_stream)
 
         logger.info(f"File transfer complete (file ID: '{file_id}').")
-        db.audit_file_transfer(file_name=file_name, unique_id=unique_id, success=True, error=None)
+        db.audit_file_transfer(file_name=file_name, submission_id=submission_id, success=True, error=None)
 
     except requests.HTTPError as e:
         error_msg = f"Google Drive API error during upload of '{file_name}': [{e.response.status_code}] {e.response.text}"
         logger.error(error_msg, exc_info=True)
-        db.audit_file_transfer(file_name=file_name, unique_id=unique_id, success=False, error=error_msg)
+        db.audit_file_transfer(file_name=file_name, submission_id=submission_id, success=False, error=error_msg)
         raise
 
     except Exception as e:
         error_msg = f"Unexpected error during upload of '{file_name}': {e}"
         logger.error(error_msg, exc_info=True)
-        db.audit_file_transfer(file_name=file_name, unique_id=unique_id, success=False, error=error_msg)
+        db.audit_file_transfer(file_name=file_name, submission_id=submission_id, success=False, error=error_msg)
         raise

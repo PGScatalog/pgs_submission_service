@@ -113,12 +113,12 @@ def get_endpoint_id_by_unique_id(unique_id: str) -> str | None:
         return None
 
 
-def audit_file_transfer(file_name: str, unique_id: str, success: bool, error: str | None = None):
+def audit_file_transfer(file_name: str, submission_id: str, success: bool, error: str | None = None):
     """Write an audit entry for a metadata file transfer operation."""
     try:
         doc = {
             "file_name": file_name,
-            "unique_id": unique_id,
+            "submission_id": submission_id,
             "success": success,
             "error": error,
             "timestamp": _now(),
@@ -128,35 +128,35 @@ def audit_file_transfer(file_name: str, unique_id: str, success: bool, error: st
         logger.error(f"Failed to write audit log: {e}")
 
 
-def create_metadata_validation(unique_id: str, filename: str | None = None):
+def create_metadata_validation(submission_id: str, filename: str | None = None):
     try:
         doc = {
-            "unique_id": unique_id,
+            "submission_id": submission_id,
             "filename": filename,
             "status": "PENDING",
             "created_at": _now(),
             "reported_at": None,
         }
         # Use unique_id as document ID for easy lookup
-        get_store().set(METADATA_VALIDATION_COLLECTION, unique_id, doc)
+        get_store().set(METADATA_VALIDATION_COLLECTION, submission_id, doc)
     except Exception as e:
         logger.error(f"Failed to create folder record: {e}")
 
 
-def report_metadata_validation(unique_id: str, report: dict):
+def report_metadata_validation(submission_id: str, report: dict):
     try:
         fields = {
             "status": report.pop("status", "UNKNOWN"),
             "reported_at": _now(),
         }
         fields.update(report)
-        get_store().update(METADATA_VALIDATION_COLLECTION, unique_id, fields)
+        get_store().update(METADATA_VALIDATION_COLLECTION, submission_id, fields)
     except Exception as e:
-        logger.error(f"Failed to report metadata validation (id: {unique_id}): {e}")
+        logger.error(f"Failed to report metadata validation (submission_id: {submission_id}): {e}")
 
 
-def get_metadata_validation(unique_id: str) -> dict | None:
+def get_metadata_validation(submission_id: str) -> dict | None:
     try:
-        return get_store().get(METADATA_VALIDATION_COLLECTION, unique_id)
+        return get_store().get(METADATA_VALIDATION_COLLECTION, submission_id)
     except Exception as e:
         logger.error(f"Failed to get folder record: {e}")
