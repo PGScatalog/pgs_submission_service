@@ -3,7 +3,9 @@ import logging
 import os
 import re
 
+import pydantic
 from flask import request, jsonify, current_app, Blueprint
+from pydantic import BaseModel
 
 import app.services.db as db
 import app.services.file_transfer as file_transfer
@@ -37,40 +39,42 @@ def add_report_error(deposition_report: dict, report: dict):
 
 def process_metadata(payload: dict) -> bool:
     """Returns True when finished (success OR permanent failure), False to request a retry."""
+    job_id = payload.get('job_id')
     submission_id = payload.get('submission_id')
 
     # Make sure the validation exists and is pending
     try:
-        metadata_validation = db.get_metadata_validation(submission_id)
+        metadata_validation = db.get_metadata_validation(job_id=job_id)
     except Exception as e:
         logger.error("Failed to get existing metadata validation.")
         logger.exception(e)
         return False
     if not metadata_validation:
-        logger.error(f"Metadata validation with submission_id {submission_id} could not be found.")
+        logger.error(f"Metadata validation with job_id {job_id} could not be found.")
         return False
     if metadata_validation.get("status", "UNKNOWN") != "PENDING":
-        logger.error(f"Metadata validation with submission_id {submission_id} is not pending.")
+        logger.error(f"Metadata validation with job_id {job_id} is not pending.")
         return False
 
     filename = payload.get('original_filename')
     storage: StorageService = current_app.extensions['storage']
 
-    file_bytes = storage.retrieve(submission_id)
+    file_bytes = storage.retrieve(job_id)
 
     try:
         validation_results = metadata_validator.validate_metadata(io.BytesIO(file_bytes))
     except Exception as e:
-        logger.error("Task %s failed", submission_id)
+        logger.error("Task %s failed", job_id)
         logger.exception(e)
-        db.report_metadata_validation(submission_id=submission_id, report={"status": "FAILED"})
+        db.report_metadata_validation(job_id=job_id, report={"status": "FAILED"})
         return True  # don't retry bad files
 
     if current_app.config.get("METADATA_FILE_TRANSFER_ENABLED", False) and validation_results.valid:
         try:
             file_transfer.upload_file_to_google_drive(file_stream=io.BytesIO(file_bytes),
                                                       file_name=filename,
-                                                      submission_id=submission_id)
+                                                      submission_id=submission_id,
+                                                      job_id=job_id)
         except Exception:
             logger.exception("Transfer failed for %s", submission_id)
             return False  # retry
@@ -84,7 +88,7 @@ def process_metadata(payload: dict) -> bool:
         add_report_error(public_warning_report, validation_results.warning_messages)
 
     db.report_metadata_validation(
-        submission_id=submission_id,
+        job_id=job_id,
         report={
             "status": "COMPLETED",
             "valid": valid,
@@ -93,7 +97,7 @@ def process_metadata(payload: dict) -> bool:
             "scoreNames": validation_results.score_names,
         }
     )
-    storage.delete(submission_id)
+    storage.delete(job_id)
     return True
 
 
@@ -108,25 +112,32 @@ def validate_metadata_async(submission_id: str):
 
     # Validate the client-supplied ID
     if not SUBMISSION_ID_PATTERN.fullmatch(submission_id):
-        return jsonify({"error": "pcp_id is not in valid format"}), 400
+        return jsonify({"error": "submission_id is not in valid format"}), 400
 
     storage_service: StorageService = current_app.extensions['storage']
     task_queue: TaskQueue = current_app.extensions['task_queue']
 
-    storage_service.store(file, file_name=submission_id)
+    job_id = db.create_metadata_validation(submission_id, file.filename)
 
-    db.create_metadata_validation(submission_id, file.filename)
+    storage_service.store(file, file_name=job_id)
 
     task_queue.enqueue(
         handler=process_metadata,
-        payload={"submission_id": submission_id, "original_filename": file.filename},
+        payload={"job_id": job_id, "submission_id": submission_id, "original_filename": file.filename},
         path=WORKER_PATH,
     )
 
     return jsonify({
         "message": "Validation and transfer queued successfully.",
-        "submissionId": submission_id
+        "submissionId": submission_id,
+        "jobId": job_id
     }), 202
+
+
+class ProcessMetadataTaskRequest(BaseModel):
+    job_id: str
+    submission_id: str
+    original_filename: str
 
 
 # --- 2. THE BACKGROUND WORKER ENDPOINT ---
@@ -140,6 +151,10 @@ def process_metadata_task():
     payload = request.get_json()
     if not payload:
         return "Missing payload", 400
+    try:
+        ProcessMetadataTaskRequest.model_validate(payload)
+    except pydantic.ValidationError as e:
+        return jsonify({"error": e.errors()}), 400
 
     try:
         process_metadata(payload)

@@ -1,9 +1,11 @@
 import logging
+import uuid
 from datetime import datetime as dt, timezone
 
 from flask import current_app
 
 from app.services.document_store import DocumentStore
+from app.services.document_store.document_store import Not
 
 logger = logging.getLogger(__name__)
 
@@ -113,12 +115,13 @@ def get_endpoint_id_by_unique_id(unique_id: str) -> str | None:
         return None
 
 
-def audit_file_transfer(file_name: str, submission_id: str, success: bool, error: str | None = None):
+def audit_file_transfer(file_name: str, submission_id: str, job_id: str, success: bool, error: str | None = None):
     """Write an audit entry for a metadata file transfer operation."""
     try:
         doc = {
             "file_name": file_name,
             "submission_id": submission_id,
+            "job_id": job_id,
             "success": success,
             "error": error,
             "timestamp": _now(),
@@ -128,35 +131,49 @@ def audit_file_transfer(file_name: str, submission_id: str, success: bool, error
         logger.error(f"Failed to write audit log: {e}")
 
 
-def create_metadata_validation(submission_id: str, filename: str | None = None):
+def create_metadata_validation(submission_id: str, filename: str) -> str:
+    """Create a metadata validation document and return a unique job ID for this validation."""
     try:
+        job_id = str(uuid.uuid4())
         doc = {
             "submission_id": submission_id,
+            "job_id": job_id,
             "filename": filename,
             "status": "PENDING",
             "created_at": _now(),
             "reported_at": None,
         }
+        # Dismissing existing validations for that submission
+        dismissed_count = get_store().update_by_filter(METADATA_VALIDATION_COLLECTION, {'submission_id': submission_id, 'status': Not('DISMISSED')}, {'status': 'DISMISSED'})
+        if dismissed_count:
+            logger.info(f"{dismissed_count} validations dismissed for submission {submission_id}")
         # Use unique_id as document ID for easy lookup
-        get_store().set(METADATA_VALIDATION_COLLECTION, submission_id, doc)
+        get_store().set(METADATA_VALIDATION_COLLECTION, job_id, doc)
+        return job_id
     except Exception as e:
-        logger.error(f"Failed to create folder record: {e}")
+        logger.error(f"Failed to create metadata record: {e}")
+        raise e
 
 
-def report_metadata_validation(submission_id: str, report: dict):
+def report_metadata_validation(job_id: str, report: dict):
     try:
         fields = {
             "status": report.pop("status", "UNKNOWN"),
             "reported_at": _now(),
         }
         fields.update(report)
-        get_store().update(METADATA_VALIDATION_COLLECTION, submission_id, fields)
+        get_store().update(METADATA_VALIDATION_COLLECTION, job_id, fields)
     except Exception as e:
-        logger.error(f"Failed to report metadata validation (submission_id: {submission_id}): {e}")
+        logger.error(f"Failed to report metadata validation (job_id: {job_id}): {e}")
 
 
-def get_metadata_validation(submission_id: str) -> dict | None:
+def get_metadata_validation(submission_id: str = None, job_id: str = None) -> dict | None:
     try:
-        return get_store().get(METADATA_VALIDATION_COLLECTION, submission_id)
+        if job_id:
+            return get_store().get(METADATA_VALIDATION_COLLECTION, job_id)
+        elif submission_id:
+            return get_store().get_by_filter(METADATA_VALIDATION_COLLECTION, {'submission_id': submission_id, 'status': Not("DISMISSED")})
+        else:
+            raise ValueError("Must provide either job_id or submission_id")
     except Exception as e:
-        logger.error(f"Failed to get folder record: {e}")
+        logger.error(f"Failed to get metadata record: {e}")
