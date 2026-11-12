@@ -1,6 +1,6 @@
 import os
 
-from pydantic import SecretStr
+from pydantic import SecretStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,20 +9,42 @@ def env_bool(var_name: str, default: bool = False) -> bool:
     return os.environ.get(var_name, str(default)).lower() in ("true", "1", "yes")
 
 
+def _gae_base_url() -> str:
+    """Derive the public URL from App Engine's runtime environment."""
+    project = os.getenv("GOOGLE_CLOUD_PROJECT")
+    service = os.getenv("GAE_SERVICE")
+    if project and service:
+        host = (f"{project}.appspot.com" if service == "default"
+                else f"{service}-dot-{project}.appspot.com")
+        return f"https://{host}"
+    return "http://localhost:5000"
+
+
 class Config(BaseSettings):
     SECURED: bool = True
-    LOCAL_PUBLIC_KEY_FILE: str = "public.pem"
+    LOCAL_PUBLIC_KEY_FILE: str = "public.pem"  # local testing only, used for all issuers
     GCP_PROJECT_NAME: str | None = None
-    GAE_SECRET_KEY_NAME: str | None = None
-    JWT_EXPECTED_ISSUER: str = "gwas-deposition-app"
     JWT_EXPECTED_AUDIENCE: str = "pgs-deposition-api"
+    # Whitelist of trusted issuers -> where to find their public key (GCP Secret Manager)
+    JWT_ISSUERS: dict[str, dict[str, str]] = {
+        "<issuer-name>": {"secret_name": "<key-name>"},
+    }
     # File size limit set to 4MB (average is 400-500K)
     MAX_CONTENT_LENGTH: int = 4 * 1000 * 1000
     DEBUG: bool = False
+    BASE_URL: str = Field(default_factory=_gae_base_url)
 
     # Database
     FIRESTORE_PROJECT_ID: str | None = None
     FIRESTORE_DATABASE_ID: str | None = None
+
+    # Storage
+    GCS_BUCKET_NAME: str | None = None
+
+    # Cloud Tasks
+    GCT_LOCATION: str | None = None
+    GCT_QUEUE_NAME: str | None = None
+    GCT_SERVICE_ACCOUNT: str | None = None
 
     # Google Drive transfer
     METADATA_FILE_TRANSFER_ENABLED: bool = True

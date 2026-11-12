@@ -151,7 +151,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/GlobusErrorResponse'
 
-        '404':
+        '422':
           description: User not found (email address does not correspond to a valid Globus user)
           content:
             application/json:
