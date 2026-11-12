@@ -1,3 +1,4 @@
+import logging
 import os
 
 import pydantic
@@ -22,10 +23,25 @@ limiter = Limiter(
     )
 
 
+def configure_logging(app):
+    if os.getenv("GAE_ENV"):
+        # Running on App Engine: send logs to Cloud Logging
+        import google.cloud.logging
+
+        client = google.cloud.logging.Client()
+        client.setup_logging(log_level=logging.INFO)
+    else:
+        # Local development: plain console logging
+        logging.basicConfig(level=logging.INFO)
+
+    app.logger.setLevel(logging.INFO)
+
+
 def create_app(config_object: BaseSettings = config.Config()):
     """Create and configure the Flask application.
     The config_object type should be a subclass of BaseSettings, so that Pydantic can load environment variables properly."""
     app = Flask(__name__)
+    configure_logging(app)
 
     app.config.from_object(config_object)
 
