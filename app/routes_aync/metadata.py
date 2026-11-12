@@ -157,10 +157,13 @@ def process_metadata_task():
         return jsonify({"error": e.errors()}), 400
 
     try:
-        process_metadata(payload)
+        success = process_metadata(payload)
+        if not success:
+            return "Internal Server Error", 500
     except Exception as e:
         logger.error("Exception processing")
         logger.exception(e)
+        return "Internal Server Error", 500
 
     return "OK", 200
 
