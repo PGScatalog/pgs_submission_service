@@ -4,7 +4,7 @@ import uuid
 
 import pydantic
 from flask import jsonify, request, Blueprint, make_response, abort, current_app
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 import app.services.metadata_validator as metadata_validator
 import app.services.file_transfer as file_transfer
@@ -136,7 +136,7 @@ def globus_mkdir():
 class MkdirRequest(BaseModel):
     """Pydantic model for validating the input payload for the /globus/mkdir endpoint."""
     unique_id: str = Field(min_length=8)
-    email_address: EmailStr
+    email_address: str  # Some Globus user identifiers may not be strictly an email (eg: *@*@accounts.google.com)
 
 
 @bp.route("/globus/<unique_id>", methods=["DELETE"])
