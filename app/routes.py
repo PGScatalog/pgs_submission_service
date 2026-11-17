@@ -58,8 +58,10 @@ def validate_metadata():
     try:
         file_bytes = file.read()
         validation_results = metadata_validator.validate_metadata(io.BytesIO(file_bytes))
+        db.audit_sync_metadata_validation(file.filename, validation_results)
     except Exception as e:
         logger.error(str(e))
+        db.audit_sync_metadata_validation(file.filename, None, str(e))
         return jsonify({
             "valid": False,
             "errorMessages": {

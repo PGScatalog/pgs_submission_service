@@ -6,6 +6,7 @@ from flask import current_app
 
 from app.services.document_store import DocumentStore
 from app.services.document_store.document_store import Not
+from app.services.metadata_validator import ValidationResults
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,7 @@ GLOBUS_FOLDERS_COLLECTION = "globus_folders"
 GLOBUS_FOLDERS_AUDIT_COLLECTION = "globus_folders_audit"
 
 METADATA_TRANSFER_AUDIT_COLLECTION = "metadata_transfer_audit"
+METADATA_VALIDATION_AUDIT_COLLECTION = "metadata_validation_audit"
 
 METADATA_VALIDATION_COLLECTION = "metadata_validation"
 
@@ -127,6 +129,26 @@ def audit_file_transfer(file_name: str, submission_id: str, job_id: str, success
             "timestamp": _now(),
         }
         get_store().add(METADATA_TRANSFER_AUDIT_COLLECTION, doc)
+    except Exception as e:
+        logger.error(f"Failed to write audit log: {e}")
+
+
+def audit_sync_metadata_validation(file_name: str, validation_results: ValidationResults | None, error: str | None = None):
+    try:
+        doc = {
+            "file_name": file_name,
+            "timestamp": _now(),
+        }
+        if validation_results:
+            doc.update({
+                "valid": validation_results.valid,
+                "error_messages": validation_results.error_messages,
+                "warning_messages": validation_results.warning_messages,
+                "score_names": validation_results.score_names,
+            })
+        if error is not None:
+            doc.update({"error": error})
+        get_store().add(METADATA_VALIDATION_AUDIT_COLLECTION, doc)
     except Exception as e:
         logger.error(f"Failed to write audit log: {e}")
 
