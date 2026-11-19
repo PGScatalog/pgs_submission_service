@@ -58,10 +58,12 @@ def validate_metadata():
     try:
         file_bytes = file.read()
         validation_results = metadata_validator.validate_metadata(io.BytesIO(file_bytes))
-        db.audit_sync_metadata_validation(file.filename, validation_results)
+        db.audit_sync_metadata_validation(remote_addr=request.remote_addr, file_name=file.filename,
+                                          validation_results=validation_results)
     except Exception as e:
         logger.error(str(e))
-        db.audit_sync_metadata_validation(file.filename, None, str(e))
+        db.audit_sync_metadata_validation(remote_addr=request.remote_addr, file_name=file.filename,
+                                          validation_results=None, error=str(e))
         return jsonify({
             "valid": False,
             "errorMessages": {
@@ -120,18 +122,18 @@ def globus_mkdir():
     try:
         collection_id = globus.mkdir(payload.unique_id, payload.email_address)
         db.create_globus_folder(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=collection_id)
-        db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address,
-                           collection_id=collection_id, success=True)
+        db.audit_globus_mkdir(remote_addr=request.remote_addr, unique_id=payload.unique_id,
+                              email_address=payload.email_address, collection_id=collection_id, success=True)
         return jsonify({"globusOriginID": collection_id}), 201
     except globus.ResourceAlreadyExistsException as e:
         logger.info("Failed to create Globus directory: resource already exists")
-        db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
-                           success=False, error=str(e))
+        db.audit_globus_mkdir(remote_addr=request.remote_addr, unique_id=payload.unique_id,
+                              email_address=payload.email_address, collection_id=None, success=False, error=str(e))
         return jsonify({"error": "Resource already exists."}), 409
     except globus.UserNotFoundException as e:
         logger.info("Failed to create Globus directory: user not found")
-        db.audit_globus_mkdir(unique_id=payload.unique_id, email_address=payload.email_address, collection_id=None,
-                           success=False, error=str(e))
+        db.audit_globus_mkdir(remote_addr=request.remote_addr, unique_id=payload.unique_id,
+                              email_address=payload.email_address, collection_id=None, success=False, error=str(e))
         return jsonify({"error": "User not found or not linked to Globus."}), 422
 
 
@@ -159,7 +161,7 @@ def globus_deactivate_dir(unique_id):
 
             # DB logging
             db.disable_globus_folder(unique_id=unique_id)
-            db.audit_globus_disable(unique_id=unique_id, collection_id=endpoint_id, success=True)
+            db.audit_globus_disable(remote_addr=request.remote_addr, unique_id=unique_id, collection_id=endpoint_id, success=True)
 
             return make_response(jsonify({"message": "Endpoint deactivated successfully."}), 200)
         else:
@@ -168,11 +170,12 @@ def globus_deactivate_dir(unique_id):
         logger.warning(f"No endpoint found for unique ID {unique_id}: {e}")
         return jsonify({"error": "Globus resource not found"}), 404
     except globus.MultipleResourcesFoundException as e:
-        db.audit_globus_disable(unique_id=unique_id, success=False, error=str(e))
+        db.audit_globus_disable(remote_addr=request.remote_addr, unique_id=unique_id, success=False, error=str(e))
         return jsonify({"error": "Multiple matching Globus resources found."}), 409
     except Exception as e:
         logger.error(f"Failed to deactivate endpoint for unique ID {unique_id}: {e}")
         db.audit_globus_disable(
+            remote_addr=request.remote_addr,
             unique_id=unique_id,
             collection_id=endpoint_id,
             success=False,

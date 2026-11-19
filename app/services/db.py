@@ -28,9 +28,10 @@ def _now():
     return dt.now(timezone.utc)
 
 
-def _audit_globus_action(action: str, unique_id: str, email_address: str | None, collection_id: str | None, success: bool, error: str | None = None):
+def _audit_globus_action(remote_addr: str, action: str, unique_id: str, email_address: str | None, collection_id: str | None, success: bool, error: str | None = None):
     try:
         doc = {
+            "remote_addr": remote_addr,
             "unique_id": unique_id,
             "email_address": email_address,
             "action": action,
@@ -45,21 +46,21 @@ def _audit_globus_action(action: str, unique_id: str, email_address: str | None,
         logger.error(f"Failed to write audit log: {e}")
 
 
-def audit_globus_mkdir(unique_id: str, success: bool, email_address: str, collection_id: str | None, error: str | None = None):
+def audit_globus_mkdir(remote_addr: str, unique_id: str, success: bool, email_address: str, collection_id: str | None, error: str | None = None):
     """Write an audit entry for a Globus mkdir operation."""
-    _audit_globus_action(action="mkdir", unique_id=unique_id, email_address=email_address, collection_id=collection_id,
+    _audit_globus_action(remote_addr=remote_addr, action="mkdir", unique_id=unique_id, email_address=email_address, collection_id=collection_id,
                          success=success, error=error)
 
 
-def audit_globus_disable(unique_id: str, success: bool, collection_id: str | None = None, error: str | None = None):
+def audit_globus_disable(remote_addr: str, unique_id: str, success: bool, collection_id: str | None = None, error: str | None = None):
     """Write an audit entry for a Globus disable operation."""
-    _audit_globus_action(action="disable", unique_id=unique_id, email_address=None, collection_id=collection_id,
+    _audit_globus_action(remote_addr=remote_addr, action="disable", unique_id=unique_id, email_address=None, collection_id=collection_id,
                          success=success, error=error)
 
 
-def audit_globus_delete(unique_id: str, success: bool, collection_id: str | None = None, error: str | None = None):
+def audit_globus_delete(remote_addr: str, unique_id: str, success: bool, collection_id: str | None = None, error: str | None = None):
     """Write an audit entry for a Globus disable operation."""
-    _audit_globus_action(action="delete", unique_id=unique_id, email_address=None, collection_id=collection_id,
+    _audit_globus_action(remote_addr=remote_addr, action="delete", unique_id=unique_id, email_address=None, collection_id=collection_id,
                          success=success, error=error)
 
 
@@ -133,9 +134,10 @@ def audit_file_transfer(file_name: str, submission_id: str, job_id: str, success
         logger.error(f"Failed to write audit log: {e}")
 
 
-def audit_sync_metadata_validation(file_name: str, validation_results: ValidationResults | None, error: str | None = None):
+def audit_sync_metadata_validation(remote_addr: str, file_name: str, validation_results: ValidationResults | None, error: str | None = None):
     try:
         doc = {
+            "remote_addr": remote_addr,
             "file_name": file_name,
             "timestamp": _now(),
         }
